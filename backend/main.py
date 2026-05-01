@@ -27,3 +27,22 @@ def get_pods():
         }
         for pod in pods.items
     ]
+
+@app.post("/break-pod")
+def break_pod():
+    config.load_kube_config()
+    v1 = client.CoreV1Api()
+
+    pods = v1.list_namespaced_pod(namespace="default")
+
+    if not pods.items:
+        return {"message": "No pods found"}
+
+    pod_name = pods.items[0].metadata.name
+
+    v1.delete_namespaced_pod(
+        name=pod_name,
+        namespace="default"
+    )
+
+    return {"deleted_pod": pod_name}
