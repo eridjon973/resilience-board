@@ -1,0 +1,411 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0b1020;
+  --panel: #111827;
+  --border: rgba(255, 255, 255, 0.08);
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --green: #22c55e;
+  --yellow: #facc15;
+  --red: #ef4444;
+  --blue: #38bdf8;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.container {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+h1 {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.subtitle {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  max-width: 760px;
+  line-height: 1.45;
+}
+
+.status-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.badge.green {
+  color: var(--green);
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.22);
+}
+
+.badge.yellow {
+  color: var(--yellow);
+  background: rgba(250, 204, 21, 0.1);
+  border-color: rgba(250, 204, 21, 0.22);
+}
+
+.badge.red {
+  color: var(--red);
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.22);
+}
+
+.badge.blue {
+  color: var(--blue);
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.22);
+}
+
+.error,
+.warning {
+  display: none;
+  margin-bottom: 18px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.error {
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fecaca;
+}
+
+.warning {
+  border: 1px solid rgba(250, 204, 21, 0.25);
+  background: rgba(250, 204, 21, 0.08);
+  color: #fef3c7;
+}
+
+.warning ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.section-grid {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr;
+  gap: 18px;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.card h2,
+.card h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.metric-label {
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.metric-value {
+  font-size: 31px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.health-card {
+  min-height: 260px;
+}
+
+.health-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.health-score {
+  font-size: 70px;
+  font-weight: 900;
+  line-height: 0.95;
+  margin: 14px 0 8px;
+  letter-spacing: -0.06em;
+}
+
+.health-score.good {
+  color: var(--green);
+}
+
+.health-score.warn {
+  color: var(--yellow);
+}
+
+.health-score.bad {
+  color: var(--red);
+}
+
+.health-status {
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.reasons {
+  margin: 18px 0 0;
+  padding-left: 18px;
+  color: #cbd5e1;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.danger-zone {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 260px;
+}
+
+.danger-text {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.confirm-panel {
+  display: none;
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+
+.confirm-panel.active {
+  display: block;
+}
+
+.confirm-text {
+  margin: 0 0 12px;
+  color: #fecaca;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+button {
+  border: none;
+  border-radius: 14px;
+  padding: 14px 18px;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  color: white;
+  background: #dc2626;
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+  transform: none;
+}
+
+.secondary-btn {
+  background: #334155;
+}
+
+.safe-btn {
+  background: #475569;
+}
+
+.small-note {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 0;
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 560px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.timeline::-webkit-scrollbar {
+  width: 8px;
+}
+
+.timeline::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+}
+
+.timeline-item {
+  border-left: 3px solid #334155;
+  padding-left: 12px;
+  padding-bottom: 11px;
+}
+
+.timeline-item.chaos {
+  border-left-color: var(--red);
+}
+
+.timeline-item.incident {
+  border-left-color: var(--green);
+}
+
+.timeline-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.timeline-meta {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 800;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 8px;
+  white-space: nowrap;
+}
+
+td {
+  padding: 10px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  vertical-align: top;
+}
+
+tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.empty {
+  color: #64748b;
+  font-size: 14px;
+  padding: 18px 0;
+}
+
+@media (max-width: 1050px) {
+  .grid,
+  .section-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 650px) {
+  .container {
+    padding: 16px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .health-score {
+    font-size: 52px;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}

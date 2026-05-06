@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resilience Board</title>
+  <meta name="description" content="Kubernetes resilience dashboard for chaos testing, self-healing detection, health scoring, and operational timelines." />
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+
+<body>
+  <main class="container">
+    <header class="topbar">
+      <div>
+        <h1>Resilience Board</h1>
+        <p class="subtitle">
+          Kubernetes chaos, self-healing detection, persistence, health scoring, Prometheus metrics, and operational timeline.
+        </p>
+      </div>
+
+      <div class="status-row">
+        <div id="clusterBadge" class="badge">cluster: resilience-board</div>
+        <div id="watcherBadge" class="badge yellow">watcher: loading</div>
+        <div id="pollBadge" class="badge">polling: idle</div>
+        <div id="updatedBadge" class="badge">updated: never</div>
+      </div>
+    </header>
+
+    <div id="errorBox" class="error"></div>
+    <div id="warningBox" class="warning"></div>
+
+    <section class="grid">
+      <div class="card health-card">
+        <div class="health-top">
+          <div>
+            <h2>Cluster Health</h2>
+            <div id="healthScore" class="health-score">--</div>
+            <div id="healthStatus" class="health-status">Loading health score...</div>
+          </div>
+          <div id="healthBadge" class="badge yellow">unknown</div>
+        </div>
+
+        <ul id="healthReasons" class="reasons"></ul>
+      </div>
+
+      <div class="card danger-zone">
+        <div>
+          <h2>Chaos Control</h2>
+          <p class="danger-text">
+            Deletes one running pod. The watcher should detect deletion, correlate replacement,
+            persist the self-healing incident, update the timeline, and refresh the health score.
+          </p>
+        </div>
+
+        <div>
+          <div class="button-row">
+            <button id="armChaosBtn" type="button">Kill Random Pod</button>
+            <button id="refreshBtn" class="secondary-btn" type="button">Refresh Now</button>
+          </div>
+
+          <div id="confirmPanel" class="confirm-panel">
+            <p class="confirm-text">
+              Confirm chaos action: delete one running pod from the Kubernetes cluster.
+            </p>
+            <div class="button-row">
+              <button id="confirmKillBtn" type="button">Confirm Kill</button>
+              <button id="cancelKillBtn" class="safe-btn" type="button">Cancel</button>
+            </div>
+          </div>
+
+          <p id="chaosNote" class="small-note">Chaos cooldown: idle</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cards">
+      <div class="card">
+        <div class="metric-label">Incidents</div>
+        <div id="incidentCount" class="metric-value">--</div>
+      </div>
+
+      <div class="card">
+        <div class="metric-label">Chaos Events</div>
+        <div id="chaosCount" class="metric-value">--</div>
+      </div>
+
+      <div class="card">
+        <div class="metric-label">Average Recovery</div>
+        <div id="avgRecovery" class="metric-value">--</div>
+      </div>
+
+      <div class="card">
+        <div class="metric-label">Watcher Restarts</div>
+        <div id="watcherRestarts" class="metric-value">--</div>
+      </div>
+    </section>
+
+    <section class="section-grid">
+      <div class="card">
+        <h3>Timeline</h3>
+        <div id="timeline" class="timeline">
+          <div class="empty">Loading timeline...</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Incidents</h3>
+        <div id="incidentTableWrap">
+          <div class="empty">Loading incidents...</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
