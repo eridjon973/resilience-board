@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: resilience-board-api
+  namespace: resilience-board
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: resilience-board-api
+  template:
+    metadata:
+      labels:
+        app: resilience-board-api
+    spec:
+      serviceAccountName: resilience-board-sa
+      containers:
+      - name: resilience-board-api
+        image: resilience-board-api:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8000
