@@ -1,0 +1,322 @@
+import pytest
+
+from fastapi.testclient import TestClient
+
+from main import (
+    app,
+    detect_self_healing,
+    get_workload_key,
+    recent_deleted_pods,
+    recent_added_pods,
+    incidents,
+    save_incident_db,
+    SessionLocal,
+    IncidentRecord,
+    ChaosRecord,
+)
+
+
+client = TestClient(app)
+
+
+# ======================================================
+# TEST HELPERS
+# ======================================================
+
+class FakeMeta:
+    def __init__(self, name, namespace, labels=None):
+        self.name = name
+        self.namespace = namespace
+        self.labels = labels or {}
+
+
+class FakePod:
+    def __init__(self, name, namespace="default", labels=None):
+        self.metadata = FakeMeta(name, namespace, labels)
+
+
+def reset_state():
+    recent_deleted_pods.clear()
+    recent_added_pods.clear()
+    incidents.clear()
+
+
+def clear_db():
+    db = SessionLocal()
+    try:
+        db.query(IncidentRecord).delete()
+        db.query(ChaosRecord).delete()
+        db.commit()
+    finally:
+        db.close()
+
+# ======================================================
+# UNIT: WORKLOAD KEY
+# ======================================================
+
+def test_get_workload_key_app():
+    pod = FakePod("p1", labels={"app": "demo"})
+    assert get_workload_key(pod) == "demo"
+
+
+def test_get_workload_key_run():
+    pod = FakePod("p1", labels={"run": "job"})
+    assert get_workload_key(pod) == "job"
+
+
+def test_get_workload_key_unknown():
+    pod = FakePod("p1", labels={})
+    assert get_workload_key(pod) == "unknown-workload"
+
+
+# ======================================================
+# CORE: SELF-HEALING DETECTION
+# ======================================================
+
+def test_deleted_then_added_creates_incident():
+    reset_state()
+    clear_db()
+
+    deleted = FakePod("pod-old", labels={"app": "demo"})
+    added = FakePod("pod-new", labels={"app": "demo"})
+
+    first_result = detect_self_healing("DELETED", deleted)
+    second_result = detect_self_healing("ADDED", added)
+
+    assert first_result is None
+    assert second_result is not None
+    assert second_result["incident"] == "SELF_HEALING"
+    assert second_result["workload"] == "demo"
+    assert second_result["namespace"] == "default"
+    assert second_result["deleted"] == "pod-old"
+    assert second_result["replacement"] == "pod-new"
+    assert second_result["deleted"] != second_result["replacement"]
+    assert second_result["correlation"] == "OUT_OF_ORDER_SAFE"
+
+
+def test_added_then_deleted_out_of_order_creates_incident():
+    reset_state()
+    clear_db()
+
+    deleted = FakePod("pod-old", labels={"app": "demo"})
+    added = FakePod("pod-new", labels={"app": "demo"})
+
+    first_result = detect_self_healing("ADDED", added)
+    second_result = detect_self_healing("DELETED", deleted)
+
+    assert first_result is None
+    assert second_result is not None
+    assert second_result["incident"] == "SELF_HEALING"
+    assert second_result["workload"] == "demo"
+    assert second_result["namespace"] == "default"
+    assert second_result["deleted"] == "pod-old"
+    assert second_result["replacement"] == "pod-new"
+    assert second_result["deleted"] != second_result["replacement"]
+    assert second_result["correlation"] == "OUT_OF_ORDER_SAFE"
+
+
+def test_same_pod_not_valid_replacement():
+    reset_state()
+    clear_db()
+
+    pod = FakePod("same-pod", labels={"app": "demo"})
+
+    first_result = detect_self_healing("DELETED", pod)
+    second_result = detect_self_healing("ADDED", pod)
+
+    assert first_result is None
+    assert second_result is None
+    assert len(incidents) == 0
+
+
+def test_different_namespace_does_not_correlate():
+    reset_state()
+    clear_db()
+
+    deleted = FakePod("pod-old", namespace="default", labels={"app": "demo"})
+    added = FakePod("pod-new", namespace="other", labels={"app": "demo"})
+
+    first_result = detect_self_healing("DELETED", deleted)
+    second_result = detect_self_healing("ADDED", added)
+
+    assert first_result is None
+    assert second_result is None
+    assert len(incidents) == 0
+
+
+def test_different_workload_does_not_correlate():
+    reset_state()
+    clear_db()
+
+    deleted = FakePod("pod-old", labels={"app": "api"})
+    added = FakePod("pod-new", labels={"app": "worker"})
+
+    first_result = detect_self_healing("DELETED", deleted)
+    second_result = detect_self_healing("ADDED", added)
+
+    assert first_result is None
+    assert second_result is None
+    assert len(incidents) == 0
+
+
+# ======================================================
+# DATABASE: INCIDENT PERSISTENCE + DUPLICATE PROTECTION
+# ======================================================
+
+def test_duplicate_incident_not_inserted():
+    reset_state()
+    clear_db()
+
+    pod1 = FakePod("old", labels={"app": "demo"})
+    pod2 = FakePod("new", labels={"app": "demo"})
+
+    first_result = detect_self_healing("DELETED", pod1)
+    second_result = detect_self_healing("ADDED", pod2)
+
+    assert first_result is None
+    assert second_result is not None
+
+    save_incident_db(second_result)
+
+    db = SessionLocal()
+    try:
+        count = db.query(IncidentRecord).count()
+        assert count == 1
+    finally:
+        db.close()
+
+
+def test_save_incident_db_writes_record():
+    reset_state()
+    clear_db()
+
+    data = {
+        "incident": "SELF_HEALING",
+        "workload": "demo",
+        "namespace": "default",
+        "deleted": "old-pod",
+        "replacement": "new-pod",
+        "recovery_seconds": 1.25,
+        "detected_at": "2026-01-01T00:00:00+00:00",
+        "correlation": "OUT_OF_ORDER_SAFE",
+    }
+
+    save_incident_db(data)
+
+    db = SessionLocal()
+    try:
+        rows = db.query(IncidentRecord).all()
+        assert len(rows) == 1
+        assert rows[0].incident == "SELF_HEALING"
+        assert rows[0].workload == "demo"
+        assert rows[0].deleted == "old-pod"
+        assert rows[0].replacement == "new-pod"
+    finally:
+        db.close()
+
+
+# ======================================================
+# API: TIMELINE
+# ======================================================
+
+def test_timeline_ordering_newest_first():
+    reset_state()
+    clear_db()
+
+    db = SessionLocal()
+    try:
+        db.add(
+            IncidentRecord(
+                incident="SELF_HEALING",
+                workload="demo",
+                namespace="default",
+                deleted="a",
+                replacement="b",
+                recovery_seconds=1,
+                detected_at="2026-01-01T00:00:00+00:00",
+                correlation="OUT_OF_ORDER_SAFE",
+            )
+        )
+
+        db.add(
+            IncidentRecord(
+                incident="SELF_HEALING",
+                workload="demo",
+                namespace="default",
+                deleted="c",
+                replacement="d",
+                recovery_seconds=1,
+                detected_at="2026-02-01T00:00:00+00:00",
+                correlation="OUT_OF_ORDER_SAFE",
+            )
+        )
+
+        db.commit()
+    finally:
+        db.close()
+
+    res = client.get("/timeline")
+    assert res.status_code == 200
+
+    data = res.json()
+    events = data["events"]
+
+    assert data["total_events"] == 2
+    assert events[0]["time"] == "2026-02-01T00:00:00+00:00"
+    assert events[1]["time"] == "2026-01-01T00:00:00+00:00"
+
+
+# ======================================================
+# API: PROMETHEUS METRICS
+# ======================================================
+
+def test_metrics_contains_prometheus_series():
+    res = client.get("/metrics")
+
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/plain")
+
+    text = res.text
+
+    assert "resilience_incidents_total" in text
+    assert "resilience_chaos_events_total" in text
+    assert "resilience_health_score" in text
+    assert "resilience_watcher_running" in text
+    assert "resilience_watcher_restart_count" in text
+
+
+# ======================================================
+# API: HEALTH / READINESS
+# ======================================================
+
+def test_health_structure():
+    res = client.get("/health")
+    assert res.status_code == 200
+
+    data = res.json()
+
+    assert "status" in data
+    assert "watcher" in data
+    assert "running" in data["watcher"]
+    assert "restart_count" in data["watcher"]
+
+
+def test_ready_structure():
+    res = client.get("/ready")
+    assert res.status_code == 200
+
+    data = res.json()
+
+    assert "ready" in data
+    assert "reason" in data
+    assert "watcher" in data
+
+
+def test_health_score_bounds():
+    res = client.get("/health/score")
+    assert res.status_code == 200
+
+    data = res.json()
+
+    assert "score" in data
+    assert 0 <= data["score"] <= 100
