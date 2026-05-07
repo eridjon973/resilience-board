@@ -399,7 +399,7 @@ def test_pods_route_structure(monkeypatch):
         def list_pod_for_all_namespaces(self):
             return FakePodList()
 
-    monkeypatch.setattr("main.load_k8s", lambda: FakeK8s())
+    monkeypatch.setattr("backend.main.load_k8s", lambda: FakeK8s())
 
     res = client.get("/pods")
 
@@ -460,7 +460,7 @@ def test_chaos_kill_pod_route(monkeypatch):
         "time": "2026-01-01T00:00:00+00:00",
     }
 
-    monkeypatch.setattr("main.kill_first_available_pod", lambda: expected)
+    monkeypatch.setattr("backend.main.kill_first_available_pod", lambda: expected)
 
     res = client.post("/chaos/kill-pod")
 
@@ -470,7 +470,7 @@ def test_chaos_kill_pod_route(monkeypatch):
 
 def test_metrics_does_not_crash_when_health_unavailable(monkeypatch):
     monkeypatch.setattr(
-        "main.calculate_health_score",
+        "backend.main.calculate_health_score",
         lambda: {
             "score": 0,
             "status": "CRITICAL",
