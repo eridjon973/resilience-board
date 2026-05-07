@@ -5,8 +5,24 @@ from app.services.persistence import get_recent_db_incidents, get_recent_db_chao
 
 
 def calculate_health_score():
-    v1 = load_k8s()
-    pods = v1.list_pod_for_all_namespaces()
+    try:
+        v1 = load_k8s()
+        pods = v1.list_pod_for_all_namespaces()
+    except Exception as exc:
+        return {
+            "score": 0,
+            "status": "CRITICAL",
+            "reasons": [f"Kubernetes API unavailable: {exc}"],
+            "pods": {
+                "total": 0,
+                "running": 0,
+                "failed": 0
+            },
+            "watcher": watcher_status,
+            "recent_incidents_checked": 0,
+            "recent_chaos_checked": 0,
+            "evaluated_at": now_iso()
+        }
 
     total_pods = len(pods.items)
     running_pods = len([

@@ -466,3 +466,46 @@ def test_chaos_kill_pod_route(monkeypatch):
 
     assert res.status_code == 200
     assert res.json() == expected
+
+
+def test_metrics_does_not_crash_when_health_unavailable(monkeypatch):
+    monkeypatch.setattr(
+        "main.calculate_health_score",
+        lambda: {
+            "score": 0,
+            "status": "CRITICAL",
+            "reasons": ["Kubernetes API unavailable"],
+            "pods": {"total": 0, "running": 0, "failed": 0},
+            "watcher": {
+                "running": False,
+                "started_at": None,
+                "last_event_time": None,
+                "last_error": "Kubernetes API unavailable",
+                "restart_count": 0,
+            },
+            "recent_incidents_checked": 0,
+            "recent_chaos_checked": 0,
+            "evaluated_at": "2026-01-01T00:00:00+00:00",
+        },
+    )
+
+    res = client.get("/metrics")
+
+    assert res.status_code == 200
+    assert "resilience_health_score" in res.text
+
+
+def test_health_score_degrades_when_kubernetes_unavailable(monkeypatch):
+    from app.services import health as health_service
+
+    monkeypatch.setattr(
+        health_service,
+        "load_k8s",
+        lambda: (_ for _ in ()).throw(RuntimeError("Kubernetes unavailable")),
+    )
+
+    data = health_service.calculate_health_score()
+
+    assert data["score"] == 0
+    assert data["status"] == "CRITICAL"
+    assert "Kubernetes API unavailable" in data["reasons"][0]
