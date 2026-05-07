@@ -289,6 +289,61 @@ def test_metrics_contains_prometheus_series():
 # API: HEALTH / READINESS
 # ======================================================
 
+
+def test_behavioral_self_healing_flow():
+    reset_state()
+    clear_db()
+
+    deleted = FakePod("pod-old", labels={"app": "demo"})
+    added = FakePod("pod-new", labels={"app": "demo"})
+
+    first = detect_self_healing("DELETED", deleted)
+    second = detect_self_healing("ADDED", added)
+
+    assert first is None
+    assert second is not None
+
+    db = SessionLocal()
+
+    try:
+        rows = db.query(IncidentRecord).all()
+        assert len(rows) == 1
+        assert rows[0].incident == "SELF_HEALING"
+        assert rows[0].deleted == "pod-old"
+        assert rows[0].replacement == "pod-new"
+    finally:
+        db.close()
+
+    timeline_res = client.get("/timeline")
+    assert timeline_res.status_code == 200
+
+    timeline_data = timeline_res.json()
+
+    assert timeline_data["total_events"] >= 1
+
+    incident_events = [
+        e for e in timeline_data["events"]
+        if e["type"] == "INCIDENT"
+    ]
+
+    assert len(incident_events) >= 1
+
+    latest = incident_events[0]
+
+    assert latest["deleted"] == "pod-old"
+    assert latest["replacement"] == "pod-new"
+
+    health_res = client.get("/health/score")
+    assert health_res.status_code == 200
+
+    health_data = health_res.json()
+
+    assert health_data["score"] < 100
+    assert any(
+        "incident" in reason.lower()
+        for reason in health_data["reasons"]
+    )
+
 def test_health_structure():
     res = client.get("/health")
     assert res.status_code == 200
