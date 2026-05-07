@@ -18,6 +18,7 @@ from app.kubernetes.client import load_k8s
 from app.db.session import engine, SessionLocal, Base
 from app.db.models import IncidentRecord, ChaosRecord
 from app.services.time import now_iso
+from app.services.pods import get_workload_key
 
 from app.metrics import CONTENT_TYPE_LATEST, build_prometheus_metrics_output
 
@@ -45,18 +46,6 @@ db_lock = threading.Lock()
 
 
 
-
-
-def get_workload_key(pod):
-    labels = pod.metadata.labels or {}
-
-    if "app" in labels:
-        return labels["app"]
-
-    if "run" in labels:
-        return labels["run"]
-
-    return "unknown-workload"
 
 
 def clean_old_events():
