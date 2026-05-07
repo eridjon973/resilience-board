@@ -12,7 +12,8 @@ from app.schemas import WatcherStatusResponse, HealthPodsResponse, HealthScoreRe
 from typing import Optional
 from fastapi.responses import StreamingResponse, Response
 
-from kubernetes import client, config, watch
+from kubernetes import watch
+from app.kubernetes.client import load_k8s
 
 from app.db.session import engine, SessionLocal, Base
 from app.db.models import IncidentRecord, ChaosRecord
@@ -46,13 +47,6 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
 
-def load_k8s():
-    try:
-        config.load_incluster_config()
-    except config.ConfigException:
-        config.load_kube_config()
-
-    return client.CoreV1Api()
 
 
 def get_workload_key(pod):
