@@ -14,9 +14,11 @@ from fastapi.responses import StreamingResponse, Response
 
 from kubernetes import client, config, watch
 
-from sqlalchemy import create_engine, Column, Integer, String, Float
-from sqlalchemy.orm import declarative_base, sessionmaker
+from app.db.session import engine, SessionLocal, Base
+from app.db.models import IncidentRecord, ChaosRecord
 from prometheus_client import generate_latest, Gauge, Counter, CONTENT_TYPE_LATEST
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
@@ -37,45 +39,6 @@ watcher_status = {
 
 db_lock = threading.Lock()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///resilience.db")
-
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
-)
-
-SessionLocal = sessionmaker(bind=engine)
-Base = declarative_base()
-
-
-
-class IncidentRecord(Base):
-    __tablename__ = "incidents"
-
-    id = Column(Integer, primary_key=True, index=True)
-    incident = Column(String)
-    workload = Column(String)
-    namespace = Column(String)
-    deleted = Column(String)
-    replacement = Column(String)
-    recovery_seconds = Column(Float)
-    detected_at = Column(String)
-    correlation = Column(String)
-
-
-class ChaosRecord(Base):
-    __tablename__ = "chaos"
-
-    id = Column(Integer, primary_key=True, index=True)
-    experiment = Column(String)
-    status = Column(String)
-    namespace = Column(String)
-    workload = Column(String)
-    target_pod = Column(String)
-    time = Column(String)
-
-
-Base.metadata.create_all(bind=engine)
 
 
 def now_iso():
