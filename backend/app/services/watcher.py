@@ -99,3 +99,46 @@ def detect_self_healing(event_type, pod):
                 return incident
 
     return None
+
+
+from kubernetes import watch
+
+from app.kubernetes.client import load_k8s
+from app.runtime.state import watcher_status
+
+
+def background_pod_watcher():
+    while True:
+        try:
+            watcher_status["running"] = True
+            watcher_status["started_at"] = (
+                watcher_status["started_at"] or now_iso()
+            )
+
+            watcher_status["last_error"] = None
+
+            v1 = load_k8s()
+            w = watch.Watch()
+
+            for event in w.stream(
+                v1.list_namespaced_pod,
+                namespace="default"
+            ):
+                watcher_status["running"] = True
+                watcher_status["last_event_time"] = now_iso()
+
+                pod = event["object"]
+                event_type = event["type"]
+
+                incident = detect_self_healing(event_type, pod)
+
+                if incident:
+                    print(f"[BACKGROUND INCIDENT] {incident}")
+
+        except Exception as e:
+            watcher_status["running"] = False
+            watcher_status["last_error"] = str(e)
+            watcher_status["restart_count"] += 1
+
+            print(f"[WATCHER ERROR] {e}")
+            time.sleep(5)

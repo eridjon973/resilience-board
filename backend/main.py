@@ -21,7 +21,7 @@ from app.services.time import now_iso
 from app.services.pods import get_workload_key
 from app.services.persistence import incident_already_exists, save_incident_db, save_chaos_db, get_recent_db_incidents, get_recent_db_chaos, incident_to_dict, chaos_to_dict
 from app.runtime.state import recent_deleted_pods, recent_added_pods, incidents, chaos_history, watcher_status, db_lock
-from app.services.watcher import clean_old_events, detect_self_healing
+from app.services.watcher import clean_old_events, detect_self_healing, background_pod_watcher
 
 from app.metrics import CONTENT_TYPE_LATEST, build_prometheus_metrics_output
 
@@ -33,38 +33,6 @@ CORRELATION_WINDOW_SECONDS = 30
 
 
 
-def background_pod_watcher():
-    while True:
-        try:
-            watcher_status["running"] = True
-            watcher_status["started_at"] = watcher_status["started_at"] or now_iso()
-            watcher_status["last_error"] = None
-
-            v1 = load_k8s()
-            w = watch.Watch()
-
-            for event in w.stream(
-                v1.list_namespaced_pod,
-                namespace="default"
-            ):
-                watcher_status["running"] = True
-                watcher_status["last_event_time"] = now_iso()
-
-                pod = event["object"]
-                event_type = event["type"]
-
-                incident = detect_self_healing(event_type, pod)
-
-                if incident:
-                    print(f"[BACKGROUND INCIDENT] {incident}")
-
-        except Exception as e:
-            watcher_status["running"] = False
-            watcher_status["last_error"] = str(e)
-            watcher_status["restart_count"] += 1
-
-            print(f"[WATCHER ERROR] {e}")
-            time.sleep(5)
 
 
 @app.on_event("startup")
