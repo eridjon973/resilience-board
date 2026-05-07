@@ -19,7 +19,7 @@ from app.db.session import engine, SessionLocal, Base
 from app.db.models import IncidentRecord, ChaosRecord
 from app.services.time import now_iso
 from app.services.pods import get_workload_key
-from app.services.persistence import incident_already_exists, save_incident_db, save_chaos_db, get_recent_db_incidents, get_recent_db_chaos
+from app.services.persistence import incident_already_exists, save_incident_db, save_chaos_db, get_recent_db_incidents, get_recent_db_chaos, incident_to_dict, chaos_to_dict
 
 from app.metrics import CONTENT_TYPE_LATEST, build_prometheus_metrics_output
 
@@ -369,30 +369,6 @@ def get_cluster_pod_metrics():
     }
 
 
-def incident_to_dict(record):
-    return {
-        "id": record.id,
-        "incident": record.incident,
-        "workload": record.workload,
-        "namespace": record.namespace,
-        "deleted": record.deleted,
-        "replacement": record.replacement,
-        "recovery_seconds": record.recovery_seconds,
-        "detected_at": record.detected_at,
-        "correlation": record.correlation
-    }
-
-
-def chaos_to_dict(record):
-    return {
-        "id": record.id,
-        "experiment": record.experiment,
-        "status": record.status,
-        "namespace": record.namespace,
-        "workload": record.workload,
-        "target_pod": record.target_pod,
-        "time": record.time
-    }
 
 
 @app.get("/health")

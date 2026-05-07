@@ -90,3 +90,29 @@ def get_recent_db_chaos(limit=10):
         )
     finally:
         db.close()
+
+
+def incident_to_dict(record):
+    return {
+        "id": record.id,
+        "incident": record.incident,
+        "workload": record.workload,
+        "namespace": record.namespace,
+        "deleted": record.deleted,
+        "replacement": record.replacement,
+        "recovery_seconds": record.recovery_seconds,
+        "detected_at": record.detected_at,
+        "correlation": record.correlation,
+    }
+
+
+def chaos_to_dict(record):
+    return {
+        "id": record.id,
+        "experiment": record.experiment,
+        "status": record.status,
+        "namespace": record.namespace,
+        "workload": record.workload,
+        "target_pod": record.target_pod,
+        "time": record.time,
+    }
