@@ -17,6 +17,7 @@ from app.kubernetes.client import load_k8s
 
 from app.db.session import engine, SessionLocal, Base
 from app.db.models import IncidentRecord, ChaosRecord
+from app.services.time import now_iso
 
 from app.metrics import CONTENT_TYPE_LATEST, build_prometheus_metrics_output
 
@@ -42,9 +43,6 @@ watcher_status = {
 db_lock = threading.Lock()
 
 
-
-def now_iso():
-    return datetime.now(timezone.utc).isoformat()
 
 
 
