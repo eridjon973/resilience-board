@@ -1,3 +1,4 @@
+from app.services.health import calculate_health_score
 import json
 import os
 import time
@@ -97,143 +98,6 @@ def kill_first_available_pod(namespace="default", workload=None):
     return event
 
 
-def calculate_health_score():
-    v1 = load_k8s()
-    pods = v1.list_pod_for_all_namespaces()
-
-    total_pods = len(pods.items)
-    running_pods = len([
-        pod for pod in pods.items
-        if pod.status.phase == "Running"
-    ])
-    failed_pods = len([
-        pod for pod in pods.items
-        if pod.status.phase in ["Failed", "Unknown"]
-    ])
-
-    score = 100
-    reasons = []
-
-    if total_pods == 0:
-        return {
-            "score": 0,
-            "status": "CRITICAL",
-            "reasons": ["No pods found in cluster"],
-            "pods": {
-                "total": 0,
-                "running": 0,
-                "failed": 0
-            },
-            "watcher": watcher_status,
-            "recent_incidents_checked": 0,
-            "recent_chaos_checked": 0,
-            "evaluated_at": now_iso()
-        }
-
-    non_running = total_pods - running_pods
-
-    if non_running > 0:
-        penalty = non_running * 10
-        score -= penalty
-        reasons.append(f"{non_running} pod(s) are not running")
-
-    if failed_pods > 0:
-        penalty = failed_pods * 15
-        score -= penalty
-        reasons.append(f"{failed_pods} pod(s) are failed or unknown")
-
-    if not watcher_status["running"]:
-        score -= 25
-        reasons.append("Background watcher is not running")
-
-    recent_incidents = get_recent_db_incidents(limit=5)
-
-    if recent_incidents:
-        penalty = len(recent_incidents) * 3
-        score -= penalty
-        reasons.append(f"{len(recent_incidents)} recent incident(s) detected")
-
-        slow_recoveries = [
-            incident for incident in recent_incidents
-            if incident.recovery_seconds and incident.recovery_seconds > 5
-        ]
-
-        if slow_recoveries:
-            penalty = len(slow_recoveries) * 5
-            score -= penalty
-            reasons.append(
-                f"{len(slow_recoveries)} slow recovery incident(s)"
-            )
-
-    recent_chaos = get_recent_db_chaos(limit=5)
-
-    failed_chaos = [
-        chaos for chaos in recent_chaos
-        if chaos.status == "FAILED"
-    ]
-
-    if failed_chaos:
-        penalty = len(failed_chaos) * 5
-        score -= penalty
-        reasons.append(f"{len(failed_chaos)} failed chaos experiment(s)")
-
-    score = max(0, min(100, score))
-
-    if score >= 90:
-        status = "HEALTHY"
-    elif score >= 70:
-        status = "DEGRADED"
-    elif score >= 40:
-        status = "UNSTABLE"
-    else:
-        status = "CRITICAL"
-
-    if not reasons:
-        reasons.append("Cluster is healthy")
-
-    return {
-        "score": score,
-        "status": status,
-        "reasons": reasons,
-        "pods": {
-            "total": total_pods,
-            "running": running_pods,
-            "failed": failed_pods
-        },
-        "watcher": watcher_status,
-        "recent_incidents_checked": len(recent_incidents),
-        "recent_chaos_checked": len(recent_chaos),
-        "evaluated_at": now_iso()
-    }
-
-
-def get_cluster_pod_metrics():
-    v1 = load_k8s()
-    pods = v1.list_pod_for_all_namespaces()
-
-    total_pods = len(pods.items)
-    running_pods = len([
-        pod for pod in pods.items
-        if pod.status.phase == "Running"
-    ])
-    failed_pods = len([
-        pod for pod in pods.items
-        if pod.status.phase in ["Failed", "Unknown"]
-    ])
-    pending_pods = len([
-        pod for pod in pods.items
-        if pod.status.phase == "Pending"
-    ])
-
-    return {
-        "total": total_pods,
-        "running": running_pods,
-        "failed": failed_pods,
-        "pending": pending_pods
-    }
-
-
-
 
 @app.get("/health")
 def health():
@@ -264,72 +128,9 @@ def health_score():
     return calculate_health_score()
 
 
-@app.get("/pods")
-def get_pods():
-    v1 = load_k8s()
-    pods = v1.list_pod_for_all_namespaces()
-
-    return [
-        {
-            "name": pod.metadata.name,
-            "namespace": pod.metadata.namespace,
-            "status": pod.status.phase,
-            "node": pod.spec.node_name,
-            "workload": get_workload_key(pod)
-        }
-        for pod in pods.items
-    ]
-
-
-@app.post("/chaos/kill-pod")
-def chaos_kill_pod():
-    return kill_first_available_pod()
-
-
-@app.get("/chaos/history")
-def get_chaos_history():
-    return chaos_history
-
-
-@app.get("/incidents")
-def get_incidents():
-    return incidents
-
-
-@app.get("/db/incidents", response_model=list[IncidentResponse])
-def db_incidents():
-    db = SessionLocal()
-
-    try:
-        rows = db.query(IncidentRecord).all()
-
-        return [
-            incident_to_dict(r)
-            for r in rows
-        ]
-    finally:
-        db.close()
-
-
-@app.get("/db/chaos")
-def db_chaos():
-    db = SessionLocal()
-
-    try:
-        rows = db.query(ChaosRecord).all()
-
-        return [
-            chaos_to_dict(r)
-            for r in rows
-        ]
-    finally:
-        db.close()
-
-
 @app.get("/timeline", response_model=TimelineResponse)
 def timeline():
     db = SessionLocal()
-
     try:
         incident_rows = db.query(IncidentRecord).all()
         chaos_rows = db.query(ChaosRecord).all()
@@ -360,10 +161,7 @@ def timeline():
                 "time": row.detected_at
             })
 
-        events.sort(
-            key=lambda event: event["time"] or "",
-            reverse=True
-        )
+        events.sort(key=lambda e: e["time"] or "", reverse=True)
 
         return {
             "total_events": len(events),
@@ -373,10 +171,10 @@ def timeline():
     finally:
         db.close()
 
-@app.get("/metrics")
-def prometheus_metrics():
-    db = SessionLocal()
 
+@app.get("/metrics")
+def metrics():
+    db = SessionLocal()
     try:
         incident_count = db.query(IncidentRecord).count()
         chaos_count = db.query(ChaosRecord).count()
@@ -390,22 +188,40 @@ def prometheus_metrics():
             watcher_restart_count=watcher_status["restart_count"],
         )
 
-        return Response(
-            content=output,
-            media_type=CONTENT_TYPE_LATEST
-        )
-
+        return Response(content=output, media_type=CONTENT_TYPE_LATEST)
     finally:
         db.close()
+
+
+@app.get("/pods")
+def pods():
+    v1 = load_k8s()
+    pod_list = v1.list_pod_for_all_namespaces()
+
+    items = []
+
+    for pod in pod_list.items:
+        items.append({
+            "name": pod.metadata.name,
+            "namespace": pod.metadata.namespace,
+            "status": pod.status.phase,
+            "workload": get_workload_key(pod),
+        })
+
+    return {
+        "total": len(items),
+        "pods": items,
+        "generated_at": now_iso(),
+    }
 
 
 @app.get("/metrics/summary", response_model=MetricsSummaryResponse)
 def metrics_summary():
     db = SessionLocal()
-
     try:
         incident_rows = db.query(IncidentRecord).all()
         chaos_rows = db.query(ChaosRecord).all()
+        health = calculate_health_score()
 
         recovery_values = [
             row.recovery_seconds
@@ -414,13 +230,12 @@ def metrics_summary():
         ]
 
         average_recovery = (
-            round(sum(recovery_values) / len(recovery_values), 3)
+            sum(recovery_values) / len(recovery_values)
             if recovery_values
             else None
         )
 
-        pod_metrics = get_cluster_pod_metrics()
-        health = calculate_health_score()
+        pod_health = health["pods"]
 
         return {
             "total_incidents": len(incident_rows),
@@ -430,190 +245,33 @@ def metrics_summary():
                 "score": health["score"],
                 "status": health["status"],
                 "reasons": health["reasons"],
-                "evaluated_at": health["evaluated_at"]
+                "evaluated_at": health["evaluated_at"],
             },
-            "watcher": watcher_status,
+            "watcher": health["watcher"],
             "pods": {
-                "total": pod_metrics["total"],
-                "running": pod_metrics["running"],
-                "failed": pod_metrics["failed"],
-                "pending": pod_metrics["pending"]
+                "total": pod_health["total"],
+                "running": pod_health["running"],
+                "failed": pod_health["failed"],
+                "pending": pod_health.get("pending", 0),
             },
-            "generated_at": now_iso()
+            "generated_at": now_iso(),
         }
     finally:
         db.close()
 
 
-@app.get("/metrics/incidents")
-def metrics_incidents():
-    db = SessionLocal()
-
-    try:
-        rows = db.query(IncidentRecord).all()
-
-        by_type = {}
-        by_workload = {}
-        by_namespace = {}
-
-        for row in rows:
-            by_type[row.incident] = by_type.get(row.incident, 0) + 1
-            by_workload[row.workload] = by_workload.get(row.workload, 0) + 1
-            by_namespace[row.namespace] = by_namespace.get(row.namespace, 0) + 1
-
-        recent = (
-            db.query(IncidentRecord)
-            .order_by(IncidentRecord.id.desc())
-            .limit(10)
-            .all()
-        )
-
-        return {
-            "total_incidents": len(rows),
-            "incidents_by_type": by_type,
-            "incidents_by_workload": by_workload,
-            "incidents_by_namespace": by_namespace,
-            "most_recent_incidents": [
-                incident_to_dict(row)
-                for row in recent
-            ],
-            "generated_at": now_iso()
-        }
-    finally:
-        db.close()
+@app.get("/db/incidents", response_model=list[IncidentResponse])
+def db_incidents():
+    records = get_recent_db_incidents()
+    return [incident_to_dict(record) for record in records]
 
 
-@app.get("/metrics/recovery-times")
-def metrics_recovery_times():
-    db = SessionLocal()
-
-    try:
-        rows = (
-            db.query(IncidentRecord)
-            .filter(IncidentRecord.recovery_seconds.isnot(None))
-            .all()
-        )
-
-        recovery_values = [
-            row.recovery_seconds
-            for row in rows
-        ]
-
-        if recovery_values:
-            average_recovery = round(
-                sum(recovery_values) / len(recovery_values),
-                3
-            )
-            fastest_recovery = min(recovery_values)
-            slowest_recovery = max(recovery_values)
-        else:
-            average_recovery = None
-            fastest_recovery = None
-            slowest_recovery = None
-
-        return {
-            "records_checked": len(rows),
-            "average_recovery_seconds": average_recovery,
-            "fastest_recovery_seconds": fastest_recovery,
-            "slowest_recovery_seconds": slowest_recovery,
-            "recovery_records": [
-                {
-                    "id": row.id,
-                    "incident": row.incident,
-                    "workload": row.workload,
-                    "namespace": row.namespace,
-                    "deleted": row.deleted,
-                    "replacement": row.replacement,
-                    "recovery_seconds": row.recovery_seconds,
-                    "detected_at": row.detected_at
-                }
-                for row in rows
-            ],
-            "generated_at": now_iso()
-        }
-    finally:
-        db.close()
+@app.get("/db/chaos")
+def db_chaos():
+    records = get_recent_db_chaos()
+    return [chaos_to_dict(record) for record in records]
 
 
-@app.get("/metrics/chaos")
-def metrics_chaos():
-    db = SessionLocal()
-
-    try:
-        rows = db.query(ChaosRecord).all()
-
-        by_experiment = {}
-        by_status = {}
-        by_workload = {}
-
-        for row in rows:
-            by_experiment[row.experiment] = (
-                by_experiment.get(row.experiment, 0) + 1
-            )
-            by_status[row.status] = by_status.get(row.status, 0) + 1
-
-            workload_key = row.workload or "unknown-workload"
-            by_workload[workload_key] = by_workload.get(workload_key, 0) + 1
-
-        latest = (
-            db.query(ChaosRecord)
-            .order_by(ChaosRecord.id.desc())
-            .limit(10)
-            .all()
-        )
-
-        return {
-            "total_chaos_experiments": len(rows),
-            "triggered_experiments": by_status.get("TRIGGERED", 0),
-            "failed_experiments": by_status.get("FAILED", 0),
-            "experiments_by_type": by_experiment,
-            "experiments_by_status": by_status,
-            "experiments_by_workload": by_workload,
-            "latest_chaos_events": [
-                chaos_to_dict(row)
-                for row in latest
-            ],
-            "generated_at": now_iso()
-        }
-    finally:
-        db.close()
-
-
-@app.get("/stream/events")
-def stream_events():
-    def event_generator():
-        v1 = load_k8s()
-        w = watch.Watch()
-
-        for event in w.stream(
-            v1.list_namespaced_pod,
-            namespace="default"
-        ):
-            pod = event["object"]
-            event_type = event["type"]
-
-            incident = detect_self_healing(event_type, pod)
-
-            if incident:
-                yield f"data: {json.dumps(incident)}\n\n"
-
-            payload = {
-                "type": event_type,
-                "pod": pod.metadata.name,
-                "namespace": pod.metadata.namespace,
-                "workload": get_workload_key(pod)
-            }
-
-            yield f"data: {json.dumps(payload)}\n\n"
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream"
-    )
-app.mount("/styles", StaticFiles(directory="static/styles"), name="styles")
-app.mount("/src", StaticFiles(directory="static/src"), name="src")
-
-
-@app.get("/")
-def frontend():
-    return FileResponse("static/index.html")
+@app.post("/chaos/kill-pod")
+def chaos_kill_pod():
+    return kill_first_available_pod()

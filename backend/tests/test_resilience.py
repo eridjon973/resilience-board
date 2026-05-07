@@ -375,3 +375,94 @@ def test_health_score_bounds():
 
     assert "score" in data
     assert 0 <= data["score"] <= 100
+
+
+# ======================================================
+# API: RESTORED ROUTE CONTRACTS
+# ======================================================
+
+def test_pods_route_structure(monkeypatch):
+    class FakeStatus:
+        phase = "Running"
+
+    class FakePodWithStatus(FakePod):
+        def __init__(self, name, namespace="default", labels=None):
+            super().__init__(name, namespace, labels)
+            self.status = FakeStatus()
+
+    class FakePodList:
+        items = [
+            FakePodWithStatus("pod-a", labels={"app": "demo"})
+        ]
+
+    class FakeK8s:
+        def list_pod_for_all_namespaces(self):
+            return FakePodList()
+
+    monkeypatch.setattr("main.load_k8s", lambda: FakeK8s())
+
+    res = client.get("/pods")
+
+    assert res.status_code == 200
+
+    data = res.json()
+
+    assert data["total"] == 1
+    assert data["pods"][0]["name"] == "pod-a"
+    assert data["pods"][0]["namespace"] == "default"
+    assert data["pods"][0]["status"] == "Running"
+    assert data["pods"][0]["workload"] == "demo"
+
+
+def test_metrics_summary_structure():
+    clear_db()
+
+    res = client.get("/metrics/summary")
+
+    assert res.status_code == 200
+
+    data = res.json()
+
+    assert "total_incidents" in data
+    assert "total_chaos_experiments" in data
+    assert "average_recovery_seconds" in data
+    assert "latest_health_score" in data
+    assert "watcher" in data
+    assert "pods" in data
+    assert "generated_at" in data
+
+
+def test_db_incidents_route_structure():
+    clear_db()
+
+    res = client.get("/db/incidents")
+
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+def test_db_chaos_route_structure():
+    clear_db()
+
+    res = client.get("/db/chaos")
+
+    assert res.status_code == 200
+    assert res.json() == []
+
+
+def test_chaos_kill_pod_route(monkeypatch):
+    expected = {
+        "experiment": "KILL_POD",
+        "status": "FAILED",
+        "namespace": "default",
+        "workload": None,
+        "target_pod": None,
+        "time": "2026-01-01T00:00:00+00:00",
+    }
+
+    monkeypatch.setattr("main.kill_first_available_pod", lambda: expected)
+
+    res = client.post("/chaos/kill-pod")
+
+    assert res.status_code == 200
+    assert res.json() == expected
