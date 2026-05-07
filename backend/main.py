@@ -19,7 +19,7 @@ from app.db.session import engine, SessionLocal, Base
 from app.db.models import IncidentRecord, ChaosRecord
 from app.services.time import now_iso
 from app.services.pods import get_workload_key
-from app.services.persistence import incident_already_exists, save_incident_db
+from app.services.persistence import incident_already_exists, save_incident_db, save_chaos_db, get_recent_db_incidents, get_recent_db_chaos
 
 from app.metrics import CONTENT_TYPE_LATEST, build_prometheus_metrics_output
 
@@ -65,44 +65,6 @@ def clean_old_events():
 
 
 
-def save_chaos_db(data):
-    with db_lock:
-        db = SessionLocal()
-
-        try:
-            row = ChaosRecord(**data)
-            db.add(row)
-            db.commit()
-        finally:
-            db.close()
-
-
-def get_recent_db_incidents(limit=10):
-    db = SessionLocal()
-
-    try:
-        return (
-            db.query(IncidentRecord)
-            .order_by(IncidentRecord.id.desc())
-            .limit(limit)
-            .all()
-        )
-    finally:
-        db.close()
-
-
-def get_recent_db_chaos(limit=10):
-    db = SessionLocal()
-
-    try:
-        return (
-            db.query(ChaosRecord)
-            .order_by(ChaosRecord.id.desc())
-            .limit(limit)
-            .all()
-        )
-    finally:
-        db.close()
 
 
 def detect_self_healing(event_type, pod):
@@ -244,7 +206,7 @@ def kill_first_available_pod(namespace="default", workload=None):
         }
 
         chaos_history.append(event)
-        save_chaos_db(event)
+        save_chaos_db(event, db_lock)
         return event
 
     target = running[0]
@@ -266,7 +228,7 @@ def kill_first_available_pod(namespace="default", workload=None):
     }
 
     chaos_history.append(event)
-    save_chaos_db(event)
+    save_chaos_db(event, db_lock)
 
     return event
 
