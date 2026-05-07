@@ -20,6 +20,7 @@ from app.db.models import IncidentRecord, ChaosRecord
 from app.services.time import now_iso
 from app.services.pods import get_workload_key
 from app.services.persistence import incident_already_exists, save_incident_db, save_chaos_db, get_recent_db_incidents, get_recent_db_chaos, incident_to_dict, chaos_to_dict
+from app.runtime.state import recent_deleted_pods, recent_added_pods, incidents, chaos_history, watcher_status, db_lock
 
 from app.metrics import CONTENT_TYPE_LATEST, build_prometheus_metrics_output
 
@@ -28,19 +29,6 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 CORRELATION_WINDOW_SECONDS = 30
-
-recent_deleted_pods = []
-recent_added_pods = []
-incidents = []
-chaos_history = []
-
-watcher_status = {
-    "running": False,
-    "started_at": None,
-    "last_event_time": None,
-    "last_error": None,
-    "restart_count": 0
-}
 
 db_lock = threading.Lock()
 
