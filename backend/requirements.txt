@@ -3,3 +3,4 @@ uvicorn[standard]
 kubernetes
 sqlalchemy
 prometheus-client
+pytest
