@@ -19,6 +19,7 @@ from app.db.session import engine, SessionLocal, Base
 from app.db.models import IncidentRecord, ChaosRecord
 from app.services.time import now_iso
 from app.services.pods import get_workload_key
+from app.services.persistence import incident_already_exists, save_incident_db
 
 from app.metrics import CONTENT_TYPE_LATEST, build_prometheus_metrics_output
 
@@ -62,40 +63,6 @@ def clean_old_events():
     ]
 
 
-def incident_already_exists(data):
-    db = SessionLocal()
-
-    try:
-        existing = (
-            db.query(IncidentRecord)
-            .filter(
-                IncidentRecord.incident == data["incident"],
-                IncidentRecord.namespace == data["namespace"],
-                IncidentRecord.workload == data["workload"],
-                IncidentRecord.deleted == data["deleted"],
-                IncidentRecord.replacement == data["replacement"]
-            )
-            .first()
-        )
-
-        return existing is not None
-    finally:
-        db.close()
-
-
-def save_incident_db(data):
-    with db_lock:
-        if incident_already_exists(data):
-            return
-
-        db = SessionLocal()
-
-        try:
-            row = IncidentRecord(**data)
-            db.add(row)
-            db.commit()
-        finally:
-            db.close()
 
 
 def save_chaos_db(data):
@@ -176,7 +143,7 @@ def detect_self_healing(event_type, pod):
                 }
 
                 incidents.append(incident)
-                save_incident_db(incident)
+                save_incident_db(incident, db_lock)
                 return incident
 
     if event_type == "ADDED":
@@ -202,7 +169,7 @@ def detect_self_healing(event_type, pod):
                 }
 
                 incidents.append(incident)
-                save_incident_db(incident)
+                save_incident_db(incident, db_lock)
                 return incident
 
     return None
