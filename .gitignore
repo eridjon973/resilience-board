@@ -6,3 +6,6 @@ __pycache__/
 terraform.tfstate
 terraform.tfstate.backup
 venv/
+
+resilience.db
+backend/resilience.db
