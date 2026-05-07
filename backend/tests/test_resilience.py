@@ -290,7 +290,7 @@ def test_metrics_contains_prometheus_series():
 # ======================================================
 
 
-def test_behavioral_self_healing_flow():
+def test_behavioral_self_healing_flow(monkeypatch):
     reset_state()
     clear_db()
 
@@ -332,6 +332,26 @@ def test_behavioral_self_healing_flow():
 
     assert latest["deleted"] == "pod-old"
     assert latest["replacement"] == "pod-new"
+
+    monkeypatch.setattr(
+        "backend.main.calculate_health_score",
+        lambda: {
+            "score": 97,
+            "status": "HEALTHY",
+            "reasons": ["1 recent incident(s) detected"],
+            "pods": {"total": 1, "running": 1, "failed": 0},
+            "watcher": {
+                "running": True,
+                "started_at": None,
+                "last_event_time": None,
+                "last_error": None,
+                "restart_count": 0,
+            },
+            "recent_incidents_checked": 1,
+            "recent_chaos_checked": 0,
+            "evaluated_at": "2026-01-01T00:00:00+00:00",
+        },
+    )
 
     health_res = client.get("/health/score")
     assert health_res.status_code == 200
