@@ -2,7 +2,7 @@ import pytest
 
 from fastapi.testclient import TestClient
 
-from main import (
+from backend.main import (
     app,
     detect_self_healing,
     get_workload_key,
