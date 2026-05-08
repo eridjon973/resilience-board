@@ -71,7 +71,7 @@ function renderSummary(data) {
     data?.average_recovery_seconds ??
     data?.avg_recovery_seconds;
 
-  setText("avgRecovery", avg !== undefined ? fmtSeconds(avg) : "--");
+  setText("avgRecovery", avg !== undefined && avg !== null ? fmtSeconds(avg) : "No recovery data");
 
   if (data?.watcher || data?.watcher_status) {
     setText("watcherRestarts", data?.watcher?.restart_count ?? data?.watcher_status?.restart_count ?? "--");
