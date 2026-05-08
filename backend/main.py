@@ -52,8 +52,22 @@ def start_background_watcher():
 
 
 def kill_first_available_pod(namespace="default", workload=None):
-    v1 = load_k8s()
-    pods = v1.list_namespaced_pod(namespace=namespace)
+    try:
+        v1 = load_k8s()
+        pods = v1.list_namespaced_pod(namespace=namespace)
+    except Exception as exc:
+        event = {
+            "experiment": "KILL_POD",
+            "status": "FAILED",
+            "namespace": namespace,
+            "workload": workload,
+            "target_pod": None,
+            "time": now_iso()
+        }
+
+        chaos_history.append(event)
+        save_chaos_db(event, db_lock)
+        return event
 
     running = [
         pod for pod in pods.items
