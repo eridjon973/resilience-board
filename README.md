@@ -26,6 +26,10 @@ Cloud Infrastructure:
 
 ![OpenAPI Schemas](docs/images/openapi-schemas.png)
 
+### Resilience Board Dashboard
+
+![Resilience Board Dashboard](docs/images/resilience-board-dashboard.png)
+
 ---
 # Overview
 
