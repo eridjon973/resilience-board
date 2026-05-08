@@ -28,7 +28,7 @@ Cloud Infrastructure:
 
 ### Resilience Board Dashboard
 
-![Resilience Board Dashboard](docs/images/resilience-board-dashboard.png)
+![Resilience Board Dashboard](./docs/images/resilience-board-dashboard.png)
 
 ---
 # Overview
