@@ -1,28 +1,114 @@
 # Resilience Board
 
+## Live Deployment
+
+Public API:
+
+* http://3.75.253.170/docs
+* http://3.75.253.170/health
+* http://3.75.253.170/metrics
+
+Cloud Infrastructure:
+
+* AWS EC2
+* Amazon ECR
+* Docker
+* Elastic IP
+* IAM role-based image pulls
+
+## API Documentation
+
+### OpenAPI Endpoints
+
+![OpenAPI Endpoints](docs/images/openapi-endpoints.png)
+
+### OpenAPI Schemas
+
+![OpenAPI Schemas](docs/images/openapi-schemas.png)
+
+---
+# Overview
+
 Resilience Board is a Kubernetes chaos engineering and self-healing observability platform.
 
-It runs a FastAPI service that watches Kubernetes pod lifecycle events, triggers controlled pod failures, detects automatic recovery, persists resilience incidents, computes a cluster health score, exposes Prometheus-compatible metrics, and serves a lightweight operational dashboard.
+It runs a FastAPI service that watches Kubernetes pod lifecycle events, triggers controlled pod failures, detects automatic recovery, persists resilience incidents, computes a cluster health score, exposes Prometheus-compatible metrics, and provides operational telemetry APIs.
 
-This project is designed as a backend/platform engineering system, not a CRUD application.
+This project was built as a backend/platform engineering system, not a CRUD application.
+
+---
+
+# Why This Project Exists
+
+Most portfolio projects demonstrate CRUD functionality.
+
+Resilience Board was designed to demonstrate real backend and infrastructure engineering concepts:
+
+* Kubernetes integration
+* chaos engineering
+* observability
+* self-healing detection
+* cloud deployment
+* containerization
+* operational telemetry
+* CI/CD workflows
+* production-style infrastructure
+
+---
+
+# Technology Stack
+
+## Backend
+
+* Python
+* FastAPI
+* SQLAlchemy
+* Uvicorn
+
+## Infrastructure
+
+* Docker
+* Kubernetes
+* kind
+* AWS EC2
+* Amazon ECR
+* IAM
+* Elastic IP
+
+## Observability
+
+* Prometheus-compatible metrics
+* health scoring
+* runtime telemetry
+
+## Persistence
+
+* SQLite
+
+## Testing / CI
+
+* pytest
+* GitHub Actions
 
 ---
 
 # What It Demonstrates
 
-- Kubernetes API integration from Python
-- In-cluster authentication through ServiceAccount and RBAC
-- Background pod watcher for lifecycle events
-- Controlled chaos experiment: delete one safe running pod
-- Kubernetes self-healing detection through replacement pod correlation
-- Recovery-time measurement
-- SQLite persistence for incidents and chaos experiments
-- Health scoring based on cluster state, watcher state, recent incidents, and chaos history
-- Prometheus-compatible metrics endpoint
-- Dockerized FastAPI backend
-- Kubernetes manifests for namespace, RBAC, deployment, and service
-- GitHub Actions CI with automated tests and Docker image build validation
-- Lightweight static dashboard served by the backend
+* Kubernetes API integration from Python
+* In-cluster authentication through ServiceAccount and RBAC
+* Background Kubernetes pod watcher
+* Controlled chaos experiment execution
+* Autonomous self-healing detection
+* Recovery-time measurement
+* Persistence of resilience incidents and chaos experiments
+* Cluster health scoring
+* Prometheus-compatible metrics rendering
+* Dockerized backend deployment
+* Kubernetes manifests for deployment and RBAC
+* Public AWS cloud deployment
+* Amazon ECR image registry workflow
+* IAM role-based image pulling
+* GitHub Actions CI pipeline
+* Production-style deployment workflow
 
 ---
 
@@ -30,34 +116,83 @@ This project is designed as a backend/platform engineering system, not a CRUD ap
 
 Implemented and verified:
 
-- FastAPI backend
-- Kubernetes watcher
-- chaos pod deletion endpoint
-- incident persistence
-- chaos experiment persistence
-- health score endpoint
-- timeline endpoint
-- database inspection endpoints
-- Prometheus metrics endpoint
-- Docker build
-- kind-based Kubernetes deployment
-- GitHub Actions CI
-- 23 automated tests
+* FastAPI backend
+* Kubernetes watcher
+* pod deletion detection
+* self-healing correlation
+* resilience incident persistence
+* chaos experiment persistence
+* health scoring system
+* Prometheus metrics endpoint
+* timeline endpoint
+* Dockerized runtime
+* kind Kubernetes deployment
+* AWS EC2 deployment
+* Amazon ECR integration
+* Elastic IP public exposure
+* IAM role-based container pulls
+* GitHub Actions CI
+* 23 automated tests
 
-Planned but not yet implemented:
+Current live deployment:
 
-- AWS deployment
-- Terraform infrastructure
-- production database backend
-- authentication
-- alerting integration
+* Public FastAPI documentation endpoint
+* Public metrics endpoint
+* Public health endpoint
+* Persistent EC2 container runtime
+
+---
+
+# Production Deployment
+
+Resilience Board is publicly deployed on AWS infrastructure.
+
+Current deployment architecture:
+
+```text
+GitHub
+   |
+   v
+GitHub Actions CI
+   |
+   v
+Docker Image Build
+   |
+   v
+Amazon ECR
+   |
+   v
+AWS EC2 Instance
+   |
+   |-- Docker Runtime
+   |-- FastAPI Backend
+   |-- Public API
+   |-- Metrics Endpoint
+   |
+   v
+Kubernetes Cluster
+   |
+   |-- Pod lifecycle monitoring
+   |-- Self-healing detection
+   |
+   v
+SQLite Persistence
+```
+
+Infrastructure currently includes:
+
+* Ubuntu 24.04 EC2 instance
+* Docker container runtime
+* Amazon ECR image registry
+* Elastic IP static public endpoint
+* IAM role-based ECR authentication
 
 ---
 
 # Architecture Overview
 
 ```text
-User / Dashboard / API Client
+User / API Client
         |
         v
 FastAPI Backend
@@ -137,96 +272,86 @@ resilience-board/
 
 # Core Backend Components
 
-## `backend/main.py`
+## backend/main.py
 
 FastAPI application entry point.
 
 Responsibilities:
 
-- registers API routes
-- starts the background watcher on application startup
-- serves static dashboard files
-- exposes health, metrics, timeline, pod, database, and chaos endpoints
+* registers API routes
+* starts the Kubernetes watcher
+* exposes health endpoints
+* exposes metrics endpoints
+* exposes persistence inspection endpoints
+* exposes chaos execution endpoints
 
 ---
 
-## `backend/app/services/watcher.py`
+## backend/app/services/watcher.py
 
-Background Kubernetes watcher.
+Concurrent Kubernetes watcher.
 
 Responsibilities:
 
-- watches pod lifecycle events
-- detects deleted pods
-- detects added replacement pods
-- correlates self-healing behavior
-- records recovery time
-- persists incidents
-- updates watcher runtime state
+* watches Kubernetes pod lifecycle events
+* detects deleted pods
+* detects replacement pods
+* correlates self-healing events
+* records recovery timing
+* persists resilience incidents
+* updates runtime watcher state
 
 ---
 
-## `backend/app/services/health.py`
+## backend/app/services/health.py
 
 Health scoring service.
 
 Responsibilities:
 
-- loads Kubernetes client
-- counts pod states
-- evaluates watcher state
-- includes recent incidents and chaos activity
-- degrades safely when Kubernetes API/configuration is unavailable
+* loads Kubernetes client
+* evaluates cluster state
+* evaluates watcher state
+* computes resilience health score
+* safely degrades when Kubernetes is unavailable
 
 ---
 
-## `backend/app/services/persistence.py`
+## backend/app/services/persistence.py
 
-Persistence service.
+Persistence layer service.
 
 Responsibilities:
 
-- saves incidents
-- saves chaos experiments
-- prevents duplicate incident insertion
-- reads persisted database records
-- converts ORM records into API-safe dictionaries
+* stores incidents
+* stores chaos experiments
+* prevents duplicate insertions
+* converts ORM records into API-safe structures
 
 ---
 
-## `backend/app/services/pods.py`
+## backend/app/services/pods.py
 
 Pod workload helper.
 
 Responsibilities:
 
-- maps Kubernetes pod labels to workload names
-- supports correlation by workload identity
+* maps Kubernetes pod labels to workload names
+* supports workload-level recovery correlation
 
 ---
 
-## `backend/app/metrics.py`
+## backend/app/runtime/state.py
 
-Prometheus metrics renderer.
-
-Responsibilities:
-
-- exposes counters and gauges as text
-- includes incident count, chaos count, health score, pod counts, watcher state, and recovery metrics
-
----
-
-## `backend/app/runtime/state.py`
-
-Runtime shared state.
+Shared runtime state.
 
 Responsibilities:
 
-- tracks recent deleted pods
-- tracks recent added pods
-- stores in-memory incidents and chaos history
-- stores watcher status
-- provides shared lock for runtime state access
+* tracks deleted pods
+* tracks replacement pods
+* stores watcher status
+* stores runtime incidents
+* provides concurrency-safe shared state
 
 ---
 
@@ -304,7 +429,7 @@ docker run --rm -p 8000:8000 resilience-board-api:local
 
 ---
 
-# kind Deployment
+# Kubernetes Deployment
 
 ```bash
 docker build -t resilience-board-api:latest backend
@@ -315,6 +440,24 @@ kubectl apply -f backend/k8s/namespace.yaml
 kubectl apply -f backend/k8s/rbac.yaml
 kubectl apply -f backend/k8s/deployment.yaml
 kubectl apply -f backend/k8s/service.yaml
+```
+
+---
+
+# AWS Deployment
+
+Public deployment currently runs on:
+
+* AWS EC2
+* Docker
+* Amazon ECR
+* Elastic IP
+* IAM instance profile authentication
+
+Container image registry:
+
+```text
+227270320785.dkr.ecr.eu-central-1.amazonaws.com/resilience-board-api:latest
 ```
 
 ---
@@ -337,34 +480,54 @@ Workflow:
 
 ---
 
+# Engineering Challenges Solved
+
+Key engineering problems solved during development:
+
+* Safe degradation when Kubernetes configuration is unavailable
+* Recovery from accidental FastAPI route deletion during refactoring
+* CI stabilization without real Kubernetes access
+* Self-healing correlation for replacement pods
+* Separation of orchestration and business logic into services
+* ECR authentication through IAM roles instead of static credentials
+* Runtime-safe watcher state handling
+* Public cloud deployment verification
+
+---
+
 # Dashboard
 
-The project includes a lightweight operational dashboard using:
+The project includes an operational dashboard built using:
 
-- vanilla HTML
-- CSS
-- JavaScript
+* HTML
+* CSS
+* JavaScript
+
+Recommended next improvement:
+
+* add dashboard screenshots directly into the README
 
 ---
 
 # Engineering Notes
 
-- watcher is concurrency-sensitive
-- runtime SQLite databases are ignored by Git
-- health scoring degrades safely when Kubernetes is unavailable
-- tests must not depend on a real Kubernetes cluster
-- Kubernetes interactions are mocked in CI
+* watcher is concurrency-sensitive
+* tests do not require a real Kubernetes cluster
+* Kubernetes interactions are mocked during CI
+* runtime SQLite databases are ignored by Git
+* health scoring safely degrades outside Kubernetes
+* container runtime survives EC2 reboot through restart policies
 
 ---
 
-# Roadmap
+# Future Infrastructure Improvements
 
-- AWS deployment
-- Terraform infrastructure
-- cloud database option
-- authentication
-- alerting integration
-- Prometheus/Grafana deployment path
-- release tagging
-- architecture diagrams
-- dashboard screenshots and demo evidence
+* Terraform infrastructure provisioning
+* PostgreSQL/RDS migration
+* HTTPS and reverse proxy
+* domain name
+* Prometheus + Grafana stack
+* Kubernetes cloud cluster deployment
+* release tagging
+* deployment automation
+* dashboard screenshots and architecture diagrams
