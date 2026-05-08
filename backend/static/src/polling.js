@@ -71,7 +71,7 @@ export async function refreshDashboard() {
       safeFetch("health", "/health/score"),
       safeFetch("summary", "/metrics/summary"),
       safeFetch("timeline", "/timeline"),
-      safeFetch("incidents", "/metrics/incidents")
+      safeFetch("incidents", "/db/incidents")
     ]);
 
     const failures = [];

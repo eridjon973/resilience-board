@@ -30,6 +30,12 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+app.mount("/styles", StaticFiles(directory=os.path.join(STATIC_DIR, "styles")), name="styles")
+app.mount("/src", StaticFiles(directory=os.path.join(STATIC_DIR, "src")), name="src")
+
 CORRELATION_WINDOW_SECONDS = 30
 
 
@@ -97,6 +103,12 @@ def kill_first_available_pod(namespace="default", workload=None):
 
     return event
 
+
+
+
+@app.get("/")
+def dashboard():
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
 @app.get("/health")
