@@ -42,7 +42,6 @@ Production Infrastructure:
 ### Architecture Diagram
 
 ![Resilience Board Architecture](./docs/images/resilience-board-architecture.png)
-
 ---
 
 # Overview
