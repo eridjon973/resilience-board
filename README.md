@@ -6,11 +6,14 @@ Public API:
 
 * http://3.75.253.170/docs
 * http://3.75.253.170/health
+* http://3.75.253.170/health/score
 * http://3.75.253.170/metrics
 
-Cloud Infrastructure:
+Production Infrastructure:
 
 * AWS EC2
+* k3s Kubernetes
+* Nginx reverse proxy
 * Amazon ECR
 * Docker
 * Elastic IP
@@ -31,31 +34,35 @@ Cloud Infrastructure:
 ![Resilience Board Dashboard](./docs/images/resilience-board-dashboard.png)
 
 ---
+
 # Overview
 
-Resilience Board is a Kubernetes chaos engineering and self-healing observability platform.
+Resilience Board is a Kubernetes chaos engineering and operational observability platform focused on real-time self-healing infrastructure behavior.
 
-It runs a FastAPI service that watches Kubernetes pod lifecycle events, triggers controlled pod failures, detects automatic recovery, persists resilience incidents, computes a cluster health score, exposes Prometheus-compatible metrics, and provides operational telemetry APIs.
+The system injects controlled Kubernetes workload failures, monitors pod lifecycle events in real time, correlates deleted and replacement workloads, measures recovery duration, persists resilience incidents, computes operational health scoring, exposes Prometheus-compatible metrics, and provides runtime telemetry APIs through a public FastAPI service.
 
-This project was built as a backend/platform engineering system, not a CRUD application.
+This project was engineered as a backend/platform infrastructure system rather than a CRUD application.
 
 ---
 
 # Why This Project Exists
 
-Most portfolio projects demonstrate CRUD functionality.
+Most portfolio projects demonstrate request/response CRUD patterns.
 
-Resilience Board was designed to demonstrate real backend and infrastructure engineering concepts:
+Resilience Board was designed to demonstrate real infrastructure and backend engineering concepts including:
 
-* Kubernetes integration
+* Kubernetes orchestration
+* distributed systems behavior
 * chaos engineering
-* observability
-* self-healing detection
-* cloud deployment
-* containerization
+* runtime observability
+* self-healing recovery detection
 * operational telemetry
-* CI/CD workflows
-* production-style infrastructure
+* container orchestration
+* event-driven backend systems
+* cloud infrastructure deployment
+* infrastructure-aware backend design
+* resilience monitoring
+* production-style platform engineering
 
 ---
 
@@ -70,10 +77,10 @@ Resilience Board was designed to demonstrate real backend and infrastructure eng
 
 ## Infrastructure
 
-* Docker
-* Kubernetes
-* kind
 * AWS EC2
+* k3s Kubernetes
+* Docker
+* Nginx
 * Amazon ECR
 * IAM
 * Elastic IP
@@ -81,8 +88,9 @@ Resilience Board was designed to demonstrate real backend and infrastructure eng
 ## Observability
 
 * Prometheus-compatible metrics
-* health scoring
+* operational health scoring
 * runtime telemetry
+* resilience event tracking
 
 ## Persistence
 
@@ -99,20 +107,24 @@ Resilience Board was designed to demonstrate real backend and infrastructure eng
 
 * Kubernetes API integration from Python
 * In-cluster authentication through ServiceAccount and RBAC
-* Background Kubernetes pod watcher
+* Kubernetes workload lifecycle monitoring
+* Background event watcher architecture
 * Controlled chaos experiment execution
-* Autonomous self-healing detection
-* Recovery-time measurement
-* Persistence of resilience incidents and chaos experiments
-* Cluster health scoring
+* Autonomous self-healing recovery detection
+* Recovery-time correlation
+* Runtime incident persistence
+* Operational health scoring
 * Prometheus-compatible metrics rendering
+* Operational telemetry APIs
 * Dockerized backend deployment
 * Kubernetes manifests for deployment and RBAC
 * Public AWS cloud deployment
-* Amazon ECR image registry workflow
-* IAM role-based image pulling
+* Amazon ECR registry workflow
+* IAM role-based image authentication
 * GitHub Actions CI pipeline
-* Production-style deployment workflow
+* Production-style deployment architecture
+* Reverse proxy integration through Nginx
+* Infrastructure-aware failure handling
 
 ---
 
@@ -123,27 +135,31 @@ Implemented and verified:
 * FastAPI backend
 * Kubernetes watcher
 * pod deletion detection
-* self-healing correlation
+* replacement pod correlation
+* self-healing recovery tracking
 * resilience incident persistence
 * chaos experiment persistence
-* health scoring system
+* operational health scoring
 * Prometheus metrics endpoint
-* timeline endpoint
+* timeline aggregation endpoint
 * Dockerized runtime
-* kind Kubernetes deployment
+* Kubernetes deployment manifests
+* k3s single-node cluster deployment
 * AWS EC2 deployment
 * Amazon ECR integration
 * Elastic IP public exposure
 * IAM role-based container pulls
+* Nginx reverse proxy integration
 * GitHub Actions CI
-* 23 automated tests
+* automated backend test suite
 
 Current live deployment:
 
 * Public FastAPI documentation endpoint
 * Public metrics endpoint
-* Public health endpoint
-* Persistent EC2 container runtime
+* Public health scoring endpoint
+* Public operational dashboard
+* Kubernetes-backed runtime infrastructure
 
 ---
 
@@ -168,16 +184,27 @@ Amazon ECR
    v
 AWS EC2 Instance
    |
-   |-- Docker Runtime
-   |-- FastAPI Backend
-   |-- Public API
-   |-- Metrics Endpoint
+   |-- Nginx Reverse Proxy
+   |-- k3s Kubernetes Cluster
    |
    v
-Kubernetes Cluster
+Kubernetes NodePort Service
+   |
+   v
+FastAPI Application Pod
+   |
+   |-- Operational APIs
+   |-- Chaos Execution
+   |-- Health Scoring
+   |-- Metrics Rendering
+   |-- Timeline Aggregation
+   |
+   v
+Kubernetes Watcher
    |
    |-- Pod lifecycle monitoring
-   |-- Self-healing detection
+   |-- Self-healing correlation
+   |-- Recovery-time measurement
    |
    v
 SQLite Persistence
@@ -186,10 +213,12 @@ SQLite Persistence
 Infrastructure currently includes:
 
 * Ubuntu 24.04 EC2 instance
-* Docker container runtime
+* k3s Kubernetes runtime
+* Nginx reverse proxy
 * Amazon ECR image registry
-* Elastic IP static public endpoint
+* Elastic IP public endpoint
 * IAM role-based ECR authentication
+* Kubernetes NodePort networking
 
 ---
 
@@ -197,6 +226,12 @@ Infrastructure currently includes:
 
 ```text
 User / API Client
+        |
+        v
+Nginx Reverse Proxy
+        |
+        v
+Kubernetes NodePort Service
         |
         v
 FastAPI Backend
@@ -210,21 +245,22 @@ FastAPI Backend
         v
 Kubernetes Client
         |
-        |-- list pods
+        |-- list workloads
         |-- watch pod events
-        |-- delete selected pod
+        |-- delete selected workloads
         |
         v
 Kubernetes Cluster
         |
-        |-- Deployment recreates deleted pods
-        |-- Watcher detects deletion and replacement
+        |-- Deployment recreates deleted workloads
+        |-- Watcher detects replacement workloads
         |
         v
 Persistence Layer
         |
         |-- incidents
         |-- chaos experiments
+        |-- recovery telemetry
         |
         v
 SQLite
@@ -283,79 +319,84 @@ FastAPI application entry point.
 Responsibilities:
 
 * registers API routes
-* starts the Kubernetes watcher
+* initializes Kubernetes integrations
+* starts the operational watcher
 * exposes health endpoints
 * exposes metrics endpoints
 * exposes persistence inspection endpoints
 * exposes chaos execution endpoints
+* exposes timeline aggregation APIs
 
 ---
 
 ## backend/app/services/watcher.py
 
-Concurrent Kubernetes watcher.
+Concurrent Kubernetes watcher service.
 
 Responsibilities:
 
 * watches Kubernetes pod lifecycle events
-* detects deleted pods
-* detects replacement pods
+* detects deleted workloads
+* detects replacement workloads
 * correlates self-healing events
 * records recovery timing
 * persists resilience incidents
 * updates runtime watcher state
+* maintains operational telemetry state
 
 ---
 
 ## backend/app/services/health.py
 
-Health scoring service.
+Operational health scoring service.
 
 Responsibilities:
 
-* loads Kubernetes client
-* evaluates cluster state
-* evaluates watcher state
-* computes resilience health score
-* safely degrades when Kubernetes is unavailable
+* loads Kubernetes client state
+* evaluates cluster runtime state
+* evaluates watcher operational state
+* computes resilience health scoring
+* safely degrades when Kubernetes becomes unavailable
 
 ---
 
 ## backend/app/services/persistence.py
 
-Persistence layer service.
+Persistence abstraction layer.
 
 Responsibilities:
 
-* stores incidents
+* stores resilience incidents
 * stores chaos experiments
 * prevents duplicate insertions
 * converts ORM records into API-safe structures
+* isolates persistence logic from orchestration logic
 
 ---
 
 ## backend/app/services/pods.py
 
-Pod workload helper.
+Kubernetes workload helper.
 
 Responsibilities:
 
-* maps Kubernetes pod labels to workload names
+* maps pod labels to workload identities
 * supports workload-level recovery correlation
+* normalizes Kubernetes workload metadata
 
 ---
 
 ## backend/app/runtime/state.py
 
-Shared runtime state.
+Shared runtime operational state.
 
 Responsibilities:
 
-* tracks deleted pods
-* tracks replacement pods
-* stores watcher status
-* stores runtime incidents
-* provides concurrency-safe shared state
+* tracks deleted workloads
+* tracks replacement workloads
+* stores watcher runtime status
+* stores operational incidents
+* provides concurrency-safe shared runtime state
 
 ---
 
@@ -369,7 +410,7 @@ GET /ready
 GET /health/score
 ```
 
-## Kubernetes Pod View
+## Kubernetes Workload View
 
 ```http
 GET /pods
@@ -438,8 +479,6 @@ docker run --rm -p 8000:8000 resilience-board-api:local
 ```bash
 docker build -t resilience-board-api:latest backend
 
-kind load docker-image resilience-board-api:latest --name resilience-board
-
 kubectl apply -f backend/k8s/namespace.yaml
 kubectl apply -f backend/k8s/rbac.yaml
 kubectl apply -f backend/k8s/deployment.yaml
@@ -453,7 +492,8 @@ kubectl apply -f backend/k8s/service.yaml
 Public deployment currently runs on:
 
 * AWS EC2
-* Docker
+* k3s Kubernetes
+* Nginx reverse proxy
 * Amazon ECR
 * Elastic IP
 * IAM instance profile authentication
@@ -488,14 +528,18 @@ Workflow:
 
 Key engineering problems solved during development:
 
-* Safe degradation when Kubernetes configuration is unavailable
+* Safe degradation when Kubernetes configuration becomes unavailable
+* Runtime-safe Kubernetes client initialization
 * Recovery from accidental FastAPI route deletion during refactoring
-* CI stabilization without real Kubernetes access
-* Self-healing correlation for replacement pods
-* Separation of orchestration and business logic into services
+* CI stabilization without live Kubernetes access
+* Self-healing correlation for replacement workloads
+* Separation of orchestration and business logic into service layers
 * ECR authentication through IAM roles instead of static credentials
 * Runtime-safe watcher state handling
+* Reverse proxy integration through Nginx
+* Kubernetes deployment migration from local development to cloud infrastructure
 * Public cloud deployment verification
+* Failure-safe chaos execution handling
 
 ---
 
@@ -507,31 +551,41 @@ The project includes an operational dashboard built using:
 * CSS
 * JavaScript
 
-Recommended next improvement:
+Dashboard capabilities include:
 
-* add dashboard screenshots directly into the README
+* cluster health visualization
+* resilience incident display
+* operational metrics rendering
+* timeline visualization
+* chaos execution controls
+* runtime telemetry display
 
 ---
 
 # Engineering Notes
 
-* watcher is concurrency-sensitive
-* tests do not require a real Kubernetes cluster
+* watcher runtime is concurrency-sensitive
+* tests do not require a live Kubernetes cluster
 * Kubernetes interactions are mocked during CI
 * runtime SQLite databases are ignored by Git
 * health scoring safely degrades outside Kubernetes
-* container runtime survives EC2 reboot through restart policies
+* watcher state is maintained separately from persistence state
+* Kubernetes workloads recover automatically through deployment reconciliation
+* operational APIs remain available during degraded Kubernetes states
 
 ---
 
 # Future Infrastructure Improvements
 
+* HTTPS with domain-based TLS
 * Terraform infrastructure provisioning
-* PostgreSQL/RDS migration
-* HTTPS and reverse proxy
-* domain name
-* Prometheus + Grafana stack
-* Kubernetes cloud cluster deployment
-* release tagging
-* deployment automation
-* dashboard screenshots and architecture diagrams
+* PostgreSQL / Amazon RDS migration
+* Prometheus + Grafana observability stack
+* Multi-node Kubernetes deployment
+* Kubernetes ingress controller
+* release tagging strategy
+* automated deployment pipelines
+* infrastructure monitoring
+* distributed persistence layer
+* architecture diagrams
+* production hardening
