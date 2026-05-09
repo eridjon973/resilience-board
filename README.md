@@ -2,6 +2,10 @@
 
 ## Live Deployment
 
+## Demo Video
+
+[Watch the Full Chaos Recovery Demo](https://youtu.be/lXCiAZh3QTA)
+
 Public API:
 
 * http://3.75.253.170/docs
